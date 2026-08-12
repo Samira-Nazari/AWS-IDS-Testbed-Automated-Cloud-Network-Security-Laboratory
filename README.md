@@ -2,6 +2,10 @@
 
 AWS IDS Testbed is a Python-based cybersecurity laboratory for building a controlled intrusion-detection environment on AWS. It creates separate victim, attacker, and IDS EC2 instances, generates labeled network traffic, captures packets on the victim, and transfers completed PCAP files to the IDS host for analysis.
 
+![AWS IDS Testbed project flow](FinalUsedPic/chat_gpt_03.png)
+
+*Project flow from infrastructure preparation through traffic capture and IDS delivery. The final analysis and alarm stages shown at the bottom are planned extensions.*
+
 > **Authorized use only:** Run this project only in an AWS account and network that you own or are explicitly authorized to test. Never direct the traffic-generation tools toward public or third-party systems.
 
 ## Project goals
@@ -66,6 +70,38 @@ The laboratory uses three EC2 roles:
 | IDS | Runs a FastAPI receiver and stores uploaded PCAP files for later processing and detection. |
 
 Communication between the hosts should use private AWS addresses. Public addresses are used only for trusted administrative SSH access.
+
+### End-to-end architecture
+
+![End-to-end AWS IDS architecture](FinalUsedPic/Process_01.png)
+
+*Conceptual end-to-end architecture. The current implementation reaches PCAP reception on the IDS host; conversion, prediction, and alarm reporting represent the intended final pipeline.*
+
+### Detailed workflow diagrams
+
+#### Inventory, configuration, and remote setup
+
+![Inventory, configuration, and remote setup](FinalUsedPic/1-1.png)
+
+The controller maintains instance information, derives communication settings, and uses SSH to deploy the software required by each EC2 role.
+
+#### Scenario labeling and continuous capture
+
+![Scenario labeling and continuous packet capture](FinalUsedPic/1-2.png)
+
+The victim reads the active scenario label, captures rotating packet chunks, rejects empty captures, and moves valid PCAP files into the pending queue.
+
+#### PCAP transfer and IDS intake
+
+![PCAP transfer and IDS intake](FinalUsedPic/2-1.png)
+
+The sender agent uploads queued captures to the IDS receiver and moves successful transfers into the sent directory. Feature extraction shown after IDS intake is a planned stage.
+
+#### Prediction and alerting goal
+
+![Prediction and alerting goal](FinalUsedPic/2-2.png)
+
+The intended final stage prepares extracted features for a trained model, classifies the traffic, stores prediction results, and presents an alarm when an attack is detected.
 
 ## Repository structure
 

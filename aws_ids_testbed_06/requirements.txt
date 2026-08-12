@@ -1,0 +1,8 @@
+boto3
+awscli
+PyYAML
+paramiko
+scp
+fastapi
+uvicorn
+python-multipart

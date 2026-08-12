@@ -1,0 +1,22 @@
+lab_name: aws-ids-testbed
+aws_region: us-east-1
+ssh:
+  username: ubuntu
+  private_key_path: null
+aws:
+  key_name: aws-ids-testbed-key
+  security_group_id: sg-08ed3dd7dcb4b98ca
+  subnet_id: subnet-04b7fa5d91263f752
+instances:
+  victim:
+    name: victim-ec2
+    instance_type: t3.micro
+    ami_id: ami-0d001f8052688dc45
+  attacker:
+    name: attacker-ec2
+    instance_type: t3.micro
+    ami_id: ami-0d001f8052688dc45
+  ids:
+    name: ids-ec2
+    instance_type: t3.small
+    ami_id: ami-0d001f8052688dc45

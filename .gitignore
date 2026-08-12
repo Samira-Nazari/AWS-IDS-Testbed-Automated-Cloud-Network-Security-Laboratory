@@ -1,0 +1,32 @@
+# Exclude earlier project versions
+/aws_ids_testbed_01/
+/aws_ids_testbed_02/
+/aws_ids_testbed_03/
+/aws_ids_testbed_04/
+/aws_ids_testbed_05/
+
+# Secrets and AWS credentials
+*.pem
+.env
+.env.*
+.aws/
+
+# Python environments and caches
+.venv/
+venv/
+env_aws_ids/
+__pycache__/
+*.py[cod]
+
+# Runtime data and generated artifacts
+inventory.yaml
+*.pcap
+*.csv
+*.pt
+*.pth
+*.pkl
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store

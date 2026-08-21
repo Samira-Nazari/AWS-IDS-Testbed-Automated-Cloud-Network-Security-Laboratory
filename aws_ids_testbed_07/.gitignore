@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+inventory.yaml
+*.pem
+*.pcap
+*.csv
+*.pt
+*.pth
+*.pkl

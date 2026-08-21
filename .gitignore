@@ -30,3 +30,11 @@ inventory.yaml
 .vscode/
 .idea/
 .DS_Store
+
+# Extra safety for local config, credentials, and generated outputs
+config.yaml
+*.key
+*.crt
+artifacts/
+logs/
+outputs/

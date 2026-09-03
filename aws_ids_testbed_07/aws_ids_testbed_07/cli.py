@@ -32,6 +32,16 @@ from aws_ids_testbed_07.ids_receiver_service import (
     ids_list_received_pcaps,
     ids_start_receiver,
 )
+from aws_ids_testbed_07.ids_pcap_converter_service import (
+    deploy_ids_pcap_converter,
+    ids_convert_pcap,
+    ids_convert_received_pcaps,
+    ids_list_csv_files,
+    ids_pcap_converter_agent_status,
+    start_ids_pcap_converter_agent,
+    stop_ids_pcap_converter_agent,
+    verify_ids_pcap_converter,
+)
 from aws_ids_testbed_07.inventory import load_inventory, update_instance
 from aws_ids_testbed_07.setup_service import run_setup_for_role
 from aws_ids_testbed_07.traffic_service import (
@@ -328,6 +338,49 @@ def ids_start_receiver_command(_: argparse.Namespace) -> int:
 def ids_list_received_pcaps_command(_: argparse.Namespace) -> int:
     """List PCAP files received on the IDS EC2 instance."""
     return ids_list_received_pcaps(PROJECT_ROOT)
+
+
+def deploy_ids_pcap_converter_command(_: argparse.Namespace) -> int:
+    """Deploy IDS PCAP-to-CSV converter files to the IDS EC2 instance."""
+    return deploy_ids_pcap_converter(PROJECT_ROOT)
+
+
+def verify_ids_pcap_converter_command(_: argparse.Namespace) -> int:
+    """Verify IDS PCAP-to-CSV converter files on the IDS EC2 instance."""
+    return verify_ids_pcap_converter(PROJECT_ROOT)
+
+
+def start_ids_pcap_converter_agent_command(_: argparse.Namespace) -> int:
+    """Start IDS PCAP-to-CSV converter agent on the IDS EC2 instance."""
+    return start_ids_pcap_converter_agent(PROJECT_ROOT)
+
+
+def stop_ids_pcap_converter_agent_command(_: argparse.Namespace) -> int:
+    """Stop IDS PCAP-to-CSV converter agent on the IDS EC2 instance."""
+    return stop_ids_pcap_converter_agent(PROJECT_ROOT)
+
+
+def ids_pcap_converter_agent_status_command(_: argparse.Namespace) -> int:
+    """Show IDS PCAP-to-CSV converter agent status on the IDS EC2 instance."""
+    return ids_pcap_converter_agent_status(PROJECT_ROOT)
+
+
+def ids_list_csv_files_command(_: argparse.Namespace) -> int:
+    """List converted CSV files on the IDS EC2 instance."""
+    return ids_list_csv_files(PROJECT_ROOT)
+
+
+def ids_convert_pcap_command(args: argparse.Namespace) -> int:
+    """Convert one received PCAP file to CSV on IDS."""
+    return ids_convert_pcap(
+        project_root=PROJECT_ROOT,
+        pcap_path=args.pcap_path,
+    )
+
+
+def ids_convert_received_pcaps_command(_: argparse.Namespace) -> int:
+    """Convert all received PCAP files to CSV on IDS."""
+    return ids_convert_received_pcaps(PROJECT_ROOT)
 
 
 def configure_victim_ids(_: argparse.Namespace) -> int:
@@ -709,6 +762,85 @@ def build_parser() -> argparse.ArgumentParser:
     #   python3 -m aws_ids_testbed_07.cli ids-list-received-pcaps
     ids_list_received_pcaps_parser = subparsers.add_parser("ids-list-received-pcaps")
     ids_list_received_pcaps_parser.set_defaults(handler=ids_list_received_pcaps_command)
+
+    # This command deploys the IDS-side PCAP-to-CSV converter and agent.
+    # It reads the IDS public IP from inventory.yaml.
+    # Terminal command:
+    #   python3 -m aws_ids_testbed_07.cli deploy-ids-pcap-converter
+    deploy_ids_pcap_converter_parser = subparsers.add_parser(
+        "deploy-ids-pcap-converter"
+    )
+    deploy_ids_pcap_converter_parser.set_defaults(
+        handler=deploy_ids_pcap_converter_command
+    )
+
+    # This command verifies the IDS-side PCAP-to-CSV converter and agent.
+    # It reads the IDS public IP from inventory.yaml.
+    # Terminal command:
+    #   python3 -m aws_ids_testbed_07.cli verify-ids-pcap-converter
+    verify_ids_pcap_converter_parser = subparsers.add_parser(
+        "verify-ids-pcap-converter"
+    )
+    verify_ids_pcap_converter_parser.set_defaults(
+        handler=verify_ids_pcap_converter_command
+    )
+
+    # This command starts the IDS-side PCAP-to-CSV converter agent.
+    # It watches /home/ubuntu/aws_ids_testbed/input for new PCAP files.
+    # Terminal command:
+    #   python3 -m aws_ids_testbed_07.cli ids-start-pcap-converter-agent
+    ids_start_pcap_converter_agent_parser = subparsers.add_parser(
+        "ids-start-pcap-converter-agent"
+    )
+    ids_start_pcap_converter_agent_parser.set_defaults(
+        handler=start_ids_pcap_converter_agent_command
+    )
+
+    # This command stops the IDS-side PCAP-to-CSV converter agent.
+    # Terminal command:
+    #   python3 -m aws_ids_testbed_07.cli ids-stop-pcap-converter-agent
+    ids_stop_pcap_converter_agent_parser = subparsers.add_parser(
+        "ids-stop-pcap-converter-agent"
+    )
+    ids_stop_pcap_converter_agent_parser.set_defaults(
+        handler=stop_ids_pcap_converter_agent_command
+    )
+
+    # This command shows IDS-side PCAP-to-CSV converter agent status and logs.
+    # Terminal command:
+    #   python3 -m aws_ids_testbed_07.cli ids-pcap-converter-agent-status
+    ids_pcap_converter_agent_status_parser = subparsers.add_parser(
+        "ids-pcap-converter-agent-status"
+    )
+    ids_pcap_converter_agent_status_parser.set_defaults(
+        handler=ids_pcap_converter_agent_status_command
+    )
+
+    # This command lists CSV files produced by IDS-side PCAP-to-CSV conversion.
+    # It reads the IDS public IP from inventory.yaml.
+    # Terminal command:
+    #   python3 -m aws_ids_testbed_07.cli ids-list-csv-files
+    ids_list_csv_files_parser = subparsers.add_parser("ids-list-csv-files")
+    ids_list_csv_files_parser.set_defaults(handler=ids_list_csv_files_command)
+
+    # This command manually converts one PCAP file already saved on the IDS.
+    # It is mainly for testing before automatic conversion is enabled.
+    # Terminal command:
+    #   python3 -m aws_ids_testbed_07.cli ids-convert-pcap --pcap-path PATH
+    ids_convert_pcap_parser = subparsers.add_parser("ids-convert-pcap")
+    ids_convert_pcap_parser.add_argument("--pcap-path", required=True)
+    ids_convert_pcap_parser.set_defaults(handler=ids_convert_pcap_command)
+
+    # This command manually converts all PCAP files already saved on the IDS.
+    # It processes one PCAP file fully before moving to the next one.
+    # Terminal command:
+    #   python3 -m aws_ids_testbed_07.cli ids-convert-received-pcaps
+    ids_convert_received_pcaps_parser = subparsers.add_parser(
+        "ids-convert-received-pcaps"
+    )
+    ids_convert_received_pcaps_parser.set_defaults(
+        handler=ids_convert_received_pcaps_command
+    )
 
     # This command saves IDS receiver settings on the victim.
     # It reads the IDS private IP from inventory.yaml.

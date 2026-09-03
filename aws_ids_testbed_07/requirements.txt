@@ -6,3 +6,6 @@ scp
 fastapi
 uvicorn
 python-multipart
+dpkt
+scapy
+tqdm

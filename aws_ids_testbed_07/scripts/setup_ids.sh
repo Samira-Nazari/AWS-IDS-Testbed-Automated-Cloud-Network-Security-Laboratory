@@ -42,7 +42,7 @@ python3 -m venv "$HOME/aws_ids_testbed/ids_env"
 
 echo "[ids] Installing first Python libraries..."
 "$HOME/aws_ids_testbed/ids_env/bin/python" -m pip install --upgrade pip
-"$HOME/aws_ids_testbed/ids_env/bin/python" -m pip install numpy pandas scikit-learn joblib pyyaml fastapi uvicorn python-multipart
+"$HOME/aws_ids_testbed/ids_env/bin/python" -m pip install numpy pandas scikit-learn joblib pyyaml fastapi uvicorn python-multipart dpkt scapy tqdm
 
 echo "[ids] Setup completed successfully."
 echo "[ids] Later model files will go in:"

@@ -71,14 +71,66 @@ case "$TRAFFIC_CODE" in
     1)
         TRAFFIC_NAME="benign_http"
         REQUESTS="${REQUESTS:-${DEFAULT_HTTP_REQUESTS:-100}}"
-        CONCURRENCY="${CONCURRENCY:-${DEFAULT_HTTP_CONCURRENCY:-5}}"
+        CONCURRENCY="${CONCURRENCY:-${DEFAULT_HTTP_CONCURRENCY:-1}}"
+
+        if [[ "$CONCURRENCY" != "1" ]]; then
+            echo "[attacker-traffic] Benign traffic forces concurrency to 1."
+        fi
+        CONCURRENCY=1
+
+        BENIGN_PATHS=(
+            "/"
+            "/index.html"
+            "/favicon.ico"
+            "/?view=home"
+            "/index.html?source=browser"
+        )
+
+        BENIGN_DELAYS=(
+            "0.80"
+            "1.10"
+            "1.30"
+            "1.50"
+            "1.80"
+        )
+
+        USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36"
 
         echo "[attacker-traffic] Traffic type: $TRAFFIC_NAME"
         echo "[attacker-traffic] Requests: $REQUESTS"
-        echo "[attacker-traffic] Concurrency: $CONCURRENCY"
-        echo "[attacker-traffic] Target: $VICTIM_URL/"
+        echo "[attacker-traffic] Effective concurrency: $CONCURRENCY"
+        echo "[attacker-traffic] Target: $VICTIM_URL"
+        echo "[attacker-traffic] Sending sequential browser-like requests..."
 
-        ab -n "$REQUESTS" -c "$CONCURRENCY" "$VICTIM_URL/"
+        for ((REQUEST_NUMBER = 1; REQUEST_NUMBER <= REQUESTS; REQUEST_NUMBER++)); do
+            PATH_INDEX=$(((REQUEST_NUMBER - 1) % ${#BENIGN_PATHS[@]}))
+            DELAY_INDEX=$(((REQUEST_NUMBER - 1) % ${#BENIGN_DELAYS[@]}))
+
+            REQUEST_PATH="${BENIGN_PATHS[$PATH_INDEX]}"
+            REQUEST_DELAY="${BENIGN_DELAYS[$DELAY_INDEX]}"
+
+            curl \
+                --silent \
+                --show-error \
+                --location \
+                --output /dev/null \
+                --connect-timeout 5 \
+                --max-time 10 \
+                --user-agent "$USER_AGENT" \
+                --header "Accept: text/html,application/xhtml+xml,image/avif,image/webp,*/*;q=0.8" \
+                --header "Accept-Language: en-US,en;q=0.9" \
+                "${VICTIM_URL}${REQUEST_PATH}"
+
+            if ((REQUEST_NUMBER == 1 ||
+                 REQUEST_NUMBER % 10 == 0 ||
+                 REQUEST_NUMBER == REQUESTS)); then
+                echo "[attacker-traffic] Completed request $REQUEST_NUMBER/$REQUESTS"
+            fi
+
+            if ((REQUEST_NUMBER < REQUESTS)); then
+                sleep "$REQUEST_DELAY"
+            fi
+        done
         ;;
 
     2)

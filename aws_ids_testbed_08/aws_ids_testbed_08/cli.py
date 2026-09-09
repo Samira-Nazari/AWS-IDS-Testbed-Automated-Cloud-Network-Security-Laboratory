@@ -43,6 +43,25 @@ from aws_ids_testbed_08.attacker_traffic_service import (
     deploy_attacker_traffic,
     verify_attacker_traffic,
 )
+from aws_ids_testbed_08.benign_network_config_service import (
+    configure_benign_network,
+)
+from aws_ids_testbed_08.benign_generator_lifecycle import (
+    create_benign_generators,
+    refresh_benign_generators,
+    terminate_benign_generators,
+)
+from aws_ids_testbed_08.benign_connectivity_service import (
+    verify_benign_connectivity,
+)
+from aws_ids_testbed_08.benign_traffic_service import (
+    benign_traffic_status,
+    deploy_benign_traffic,
+    diagnose_benign_generators,
+    start_benign_traffic,
+    stop_benign_traffic,
+    verify_benign_traffic,
+)
 from aws_ids_testbed_08.capture_service import (
     capture_benign_http_on_victim,
     verify_benign_http_pcap,
@@ -70,13 +89,17 @@ from aws_ids_testbed_08.ids_pcap_converter_service import (
     verify_ids_pcap_converter,
 )
 from aws_ids_testbed_08.inventory import load_inventory, update_instance
-from aws_ids_testbed_08.setup_service import run_setup_for_role
+from aws_ids_testbed_08.setup_service import (
+    run_setup_for_benign_generators,
+    run_setup_for_role,
+)
 from aws_ids_testbed_08.traffic_service import (
     generate_benign_http,
     generate_traffic_by_code,
 )
 from aws_ids_testbed_08.victim_capture_service import (
     deploy_victim_capture,
+    verify_benign_pcap_protocols,
     verify_victim_capture,
     victim_capture_scenario,
     victim_list_pcaps,
@@ -87,6 +110,10 @@ from aws_ids_testbed_08.victim_capture_agent_service import (
     stop_victim_capture_agent,
     victim_capture_agent_status,
     verify_victim_capture_agent,
+)
+from aws_ids_testbed_08.victim_benign_service import (
+    setup_victim_benign_services,
+    verify_victim_benign_services,
 )
 from aws_ids_testbed_08.victim_config_service import (
     configure_victim_ids_url,
@@ -162,6 +189,11 @@ def create_ids(_: argparse.Namespace) -> int:
     return 0
 
 
+def create_benign_generators_command(_: argparse.Namespace) -> int:
+    """Create the five benign generator EC2 instances."""
+    return create_benign_generators(PROJECT_ROOT)
+
+
 def refresh_role(role: str) -> int:
     """Refresh one EC2 role from AWS and save it into inventory.yaml."""
     inventory = load_inventory(PROJECT_ROOT)
@@ -195,6 +227,11 @@ def refresh_attacker(_: argparse.Namespace) -> int:
 def refresh_ids(_: argparse.Namespace) -> int:
     """Refresh IDS EC2 information."""
     return refresh_role("ids")
+
+
+def refresh_benign_generators_command(_: argparse.Namespace) -> int:
+    """Refresh the five benign generator EC2 instances."""
+    return refresh_benign_generators(PROJECT_ROOT)
 
 
 def terminate_role(role: str) -> int:
@@ -232,6 +269,11 @@ def terminate_ids(_: argparse.Namespace) -> int:
     return terminate_role("ids")
 
 
+def terminate_benign_generators_command(_: argparse.Namespace) -> int:
+    """Terminate the five benign generator EC2 instances."""
+    return terminate_benign_generators(PROJECT_ROOT)
+
+
 def setup_victim(_: argparse.Namespace) -> int:
     """Run setup_victim.sh on the victim EC2 instance."""
     return run_setup_for_role(PROJECT_ROOT, "victim")
@@ -245,6 +287,126 @@ def setup_attacker(_: argparse.Namespace) -> int:
 def setup_ids(_: argparse.Namespace) -> int:
     """Run setup_ids.sh on the IDS EC2 instance."""
     return run_setup_for_role(PROJECT_ROOT, "ids")
+
+
+def setup_benign_generators(_: argparse.Namespace) -> int:
+    """Install benign traffic tools on all five generators."""
+    return run_setup_for_benign_generators(PROJECT_ROOT)
+
+
+def setup_victim_benign_services_command(_: argparse.Namespace) -> int:
+    """Configure victim-side benign IoT-like services."""
+    return setup_victim_benign_services(PROJECT_ROOT)
+
+
+def verify_victim_benign_services_command(
+    _: argparse.Namespace,
+) -> int:
+    """Verify victim benign services and listening ports."""
+    return verify_victim_benign_services(PROJECT_ROOT)
+
+
+def configure_benign_network_command(_: argparse.Namespace) -> int:
+    """Save current victim/generator private IP settings."""
+    return configure_benign_network(PROJECT_ROOT)
+
+
+def verify_benign_connectivity_command(
+    _: argparse.Namespace,
+) -> int:
+    """Verify benign connectivity from all generators."""
+    return verify_benign_connectivity(PROJECT_ROOT)
+
+
+def deploy_benign_traffic_command(_: argparse.Namespace) -> int:
+    """Deploy the benign traffic agent to all generators."""
+    return deploy_benign_traffic(PROJECT_ROOT)
+
+
+def verify_benign_traffic_command(_: argparse.Namespace) -> int:
+    """Verify the benign traffic agent on all generators."""
+    return verify_benign_traffic(PROJECT_ROOT)
+
+
+def start_benign_traffic_command(args: argparse.Namespace) -> int:
+    """Start all benign generators for a fixed duration."""
+    return start_benign_traffic(
+        PROJECT_ROOT,
+        duration_seconds=args.duration_seconds,
+    )
+
+
+def stop_benign_traffic_command(_: argparse.Namespace) -> int:
+    """Stop all running benign generators."""
+    return stop_benign_traffic(PROJECT_ROOT)
+
+
+def benign_traffic_status_command(_: argparse.Namespace) -> int:
+    """Show the status of all benign generators."""
+    return benign_traffic_status(PROJECT_ROOT)
+
+
+def diagnose_benign_generators_command(args: argparse.Namespace) -> int:
+    """Run foreground diagnostics on all benign generators."""
+    return diagnose_benign_generators(
+        project_root=PROJECT_ROOT,
+        duration_seconds=args.duration_seconds,
+    )
+
+
+def run_benign_scenario_command(args: argparse.Namespace) -> int:
+    """Run five benign generators for a fixed duration."""
+    duration_seconds = args.auto_stop_seconds
+
+    if duration_seconds is None or duration_seconds <= 0:
+        print(
+            "The benign scenario requires "
+            "--auto-stop-seconds with a positive value."
+        )
+        return 1
+
+    print("Scenario: benign_iot_5_generators")
+
+    print("Step 1: Set victim ACTIVE_SCENARIO.")
+    scenario_status = victim_set_scenario(
+        project_root=PROJECT_ROOT,
+        scenario="benign_http",
+    )
+    if scenario_status != 0:
+        return scenario_status
+
+    print("Step 2: Start victim capture.")
+    capture_status = start_victim_capture_agent(PROJECT_ROOT)
+    if capture_status != 0:
+        return capture_status
+
+    print("Step 3: Start all five benign generators.")
+    traffic_status = start_benign_traffic(
+        project_root=PROJECT_ROOT,
+        duration_seconds=duration_seconds,
+    )
+    if traffic_status != 0:
+        stop_benign_traffic(PROJECT_ROOT)
+        stop_victim_capture_agent(PROJECT_ROOT)
+        return traffic_status
+
+    try:
+        print(
+            f"Step 4: Generate benign traffic for "
+            f"{duration_seconds} seconds."
+        )
+        time.sleep(duration_seconds)
+    finally:
+        print("Step 5: Stop all five benign generators.")
+        traffic_stop_status = stop_benign_traffic(PROJECT_ROOT)
+
+        print("Step 6: Stop victim capture.")
+        capture_stop_status = stop_victim_capture_agent(PROJECT_ROOT)
+
+    if traffic_stop_status != 0:
+        return traffic_stop_status
+
+    return capture_stop_status
 
 
 def capture_benign_http(_: argparse.Namespace) -> int:
@@ -308,6 +470,9 @@ def attacker_generate_traffic_command(args: argparse.Namespace) -> int:
 
 def run_scenario_command(args: argparse.Namespace) -> int:
     """Run one labeled scenario with coordinated victim and attacker actions."""
+    if args.traffic_code == "4":
+        return run_benign_scenario_command(args)
+
     scenario_by_code = {
         "1": "benign_http",
         "2": "dos_http_flood",
@@ -632,6 +797,7 @@ def ids_debug_compare_lite_v6_classes_command(args: argparse.Namespace) -> int:
         labels=args.labels,
         sample_windows_per_label=args.sample_windows_per_label,
         top_n_features=args.top_n_features,
+        source_file_prefixes=args.source_file_prefixes,
     )
     print(yaml.safe_dump(report, sort_keys=False).rstrip())
     return 0
@@ -780,6 +946,11 @@ def victim_list_pcaps_command(_: argparse.Namespace) -> int:
     return victim_list_pcaps(PROJECT_ROOT)
 
 
+def verify_benign_pcap_protocols_command(_: argparse.Namespace) -> int:
+    """Verify expected benign protocols in the newest pending victim PCAP."""
+    return verify_benign_pcap_protocols(PROJECT_ROOT)
+
+
 def deploy_victim_capture_agent_command(_: argparse.Namespace) -> int:
     """Copy the victim continuous capture agent to the victim EC2 instance."""
     return deploy_victim_capture_agent(PROJECT_ROOT)
@@ -840,6 +1011,14 @@ def build_parser() -> argparse.ArgumentParser:
     create_ids_parser = subparsers.add_parser("create-ids")
     create_ids_parser.set_defaults(handler=create_ids)
 
+    create_benign_generators_parser = subparsers.add_parser(
+        "create-benign-generators",
+        help="Create five benign traffic generator instances",
+    )
+    create_benign_generators_parser.set_defaults(
+        handler=create_benign_generators_command
+    )
+
     # These commands refresh saved EC2 information from AWS.
     # They are useful after instances move from pending to running.
     refresh_victim_parser = subparsers.add_parser("refresh-victim")
@@ -851,6 +1030,14 @@ def build_parser() -> argparse.ArgumentParser:
     refresh_ids_parser = subparsers.add_parser("refresh-ids")
     refresh_ids_parser.set_defaults(handler=refresh_ids)
 
+    refresh_benign_generators_parser = subparsers.add_parser(
+        "refresh-benign-generators",
+        help="Refresh five benign traffic generator instances",
+    )
+    refresh_benign_generators_parser.set_defaults(
+        handler=refresh_benign_generators_command
+    )
+
     # These commands terminate one saved EC2 instance.
     # Use them when you want to stop AWS cost for that instance.
     terminate_victim_parser = subparsers.add_parser("terminate-victim")
@@ -861,6 +1048,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     terminate_ids_parser = subparsers.add_parser("terminate-ids")
     terminate_ids_parser.set_defaults(handler=terminate_ids)
+
+    terminate_benign_generators_parser = subparsers.add_parser(
+        "terminate-benign-generators",
+        help="Terminate five benign traffic generator instances",
+    )
+    terminate_benign_generators_parser.set_defaults(
+        handler=terminate_benign_generators_command
+    )
 
     # This command sends scripts/setup_victim.sh to the victim EC2 instance.
     # Then it runs that script on the victim.
@@ -882,6 +1077,104 @@ def build_parser() -> argparse.ArgumentParser:
     #   python3 -m aws_ids_testbed_08.cli setup-ids
     setup_ids_parser = subparsers.add_parser("setup-ids")
     setup_ids_parser.set_defaults(handler=setup_ids)
+
+    setup_benign_generators_parser = subparsers.add_parser(
+        "setup-benign-generators",
+        help="Install benign traffic tools on all five generators",
+    )
+    setup_benign_generators_parser.set_defaults(
+        handler=setup_benign_generators
+    )
+
+    configure_benign_network_parser = subparsers.add_parser(
+        "configure-benign-network",
+        help="Synchronize victim and generator private IP settings",
+    )
+    configure_benign_network_parser.set_defaults(
+        handler=configure_benign_network_command
+    )
+
+    verify_benign_connectivity_parser = subparsers.add_parser(
+        "verify-benign-network",
+        help="Test benign connectivity from all five generators",
+    )
+    verify_benign_connectivity_parser.set_defaults(
+        handler=verify_benign_connectivity_command
+    )
+
+    deploy_benign_traffic_parser = subparsers.add_parser(
+        "deploy-benign-traffic",
+        help="Deploy the benign traffic agent to all generators",
+    )
+    deploy_benign_traffic_parser.set_defaults(
+        handler=deploy_benign_traffic_command
+    )
+
+    verify_benign_traffic_parser = subparsers.add_parser(
+        "verify-benign-traffic",
+        help="Verify the benign traffic agent on all generators",
+    )
+    verify_benign_traffic_parser.set_defaults(
+        handler=verify_benign_traffic_command
+    )
+
+    start_benign_traffic_parser = subparsers.add_parser(
+        "start-benign-traffic",
+        help="Start all benign generators for a fixed duration",
+    )
+    start_benign_traffic_parser.add_argument(
+        "--duration-seconds",
+        type=int,
+        required=True,
+    )
+    start_benign_traffic_parser.set_defaults(
+        handler=start_benign_traffic_command
+    )
+
+    stop_benign_traffic_parser = subparsers.add_parser(
+        "stop-benign-traffic",
+        help="Stop all benign generators",
+    )
+    stop_benign_traffic_parser.set_defaults(
+        handler=stop_benign_traffic_command
+    )
+
+    benign_traffic_status_parser = subparsers.add_parser(
+        "benign-traffic-status",
+        help="Show benign generator status",
+    )
+    benign_traffic_status_parser.set_defaults(
+        handler=benign_traffic_status_command
+    )
+
+    diagnose_benign_generators_parser = subparsers.add_parser(
+        "diagnose-benign-generators",
+        help="Run foreground diagnostics on all five benign generators",
+    )
+    diagnose_benign_generators_parser.add_argument(
+        "--duration-seconds",
+        type=int,
+        default=10,
+    )
+    diagnose_benign_generators_parser.set_defaults(
+        handler=diagnose_benign_generators_command
+    )
+
+    setup_victim_benign_services_parser = subparsers.add_parser(
+        "setup-victim-benign-services",
+        help="Configure victim-side benign IoT-like services",
+    )
+    setup_victim_benign_services_parser.set_defaults(
+        handler=setup_victim_benign_services_command
+    )
+
+    verify_victim_benign_services_parser = subparsers.add_parser(
+        "verify-victim-benign-services",
+        help="Verify victim benign services and listening ports",
+    )
+    verify_victim_benign_services_parser.set_defaults(
+        handler=verify_victim_benign_services_command
+    )
 
     # This command reads the victim public IP from inventory.yaml.
     # Then it runs tcpdump on the victim for 20 seconds.
@@ -995,8 +1288,11 @@ def build_parser() -> argparse.ArgumentParser:
     run_scenario_parser = subparsers.add_parser("run-scenario")
     run_scenario_parser.add_argument(
         "traffic_code",
-        choices=["1", "2", "3"],
-        help="1=benign_http, 2=dos_http_flood, 3=dos_syn_flood",
+        choices=["1", "2", "3", "4"],
+        help=(
+            "1=benign_http, 2=dos_http_flood, 3=dos_syn_flood, "
+            "4=benign_iot_5_generators"
+        ),
     )
     run_scenario_parser.add_argument("--requests", type=int)
     run_scenario_parser.add_argument("--concurrency", type=int)
@@ -1311,6 +1607,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=15,
         help="Number of most different features to show per matching label.",
     )
+    ids_debug_compare_lite_v6_classes_parser.add_argument(
+        "--source-file-prefix",
+        dest="source_file_prefixes",
+        action="append",
+        help=(
+            "Compare only AWS windows whose source filename starts with this "
+            "prefix. Repeat the option to select multiple prefixes."
+        ),
+    )
     ids_debug_compare_lite_v6_classes_parser.set_defaults(
         handler=ids_debug_compare_lite_v6_classes_command
     )
@@ -1502,6 +1807,17 @@ def build_parser() -> argparse.ArgumentParser:
     #   python3 -m aws_ids_testbed_08.cli victim-list-pcaps
     victim_list_pcaps_parser = subparsers.add_parser("victim-list-pcaps")
     victim_list_pcaps_parser.set_defaults(handler=victim_list_pcaps_command)
+
+    # This command verifies the expected benign protocols in the newest
+    # pending PCAP on the victim.
+    # Terminal command:
+    #   python3 -m aws_ids_testbed_08.cli verify-benign-pcap-protocols
+    verify_benign_pcap_protocols_parser = subparsers.add_parser(
+        "verify-benign-pcap-protocols"
+    )
+    verify_benign_pcap_protocols_parser.set_defaults(
+        handler=verify_benign_pcap_protocols_command
+    )
 
     # This command copies the continuous capture agent to the victim EC2 instance.
     # The agent will later capture 10-second PCAP chunks in the background.

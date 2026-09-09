@@ -30,9 +30,17 @@ while true; do
     CAPTURE_ENABLED="${CAPTURE_ENABLED:-false}"
     CAPTURE_INTERFACE="${CAPTURE_INTERFACE:-ens5}"
     CAPTURE_ROTATE_SECONDS="${CAPTURE_ROTATE_SECONDS:-10}"
+    BENIGN_CAPTURE_ROTATE_SECONDS="${BENIGN_CAPTURE_ROTATE_SECONDS:-60}"
     CAPTURE_TIMEZONE="${CAPTURE_TIMEZONE:-America/Toronto}"
+    CAPTURE_FILTER="${CAPTURE_FILTER:-}"
     ACTIVE_SCENARIO="${ACTIVE_SCENARIO:-unknown}"
     MIN_PCAP_BYTES="${MIN_PCAP_BYTES:-100}"
+
+    if [[ "$ACTIVE_SCENARIO" == "benign_http" ]]; then
+        ACTIVE_CAPTURE_SECONDS="$BENIGN_CAPTURE_ROTATE_SECONDS"
+    else
+        ACTIVE_CAPTURE_SECONDS="$CAPTURE_ROTATE_SECONDS"
+    fi
 
     if [[ "$CAPTURE_ENABLED" != "true" ]]; then
         echo "[capture-agent] Capture disabled. Waiting..."
@@ -45,16 +53,26 @@ while true; do
     TEMP_PATH="/tmp/${FILE_NAME}.tmp"
     FINAL_PATH="$PENDING_DIR/$FILE_NAME"
 
-    echo "[capture-agent] Capturing scenario=$ACTIVE_SCENARIO seconds=$CAPTURE_ROTATE_SECONDS"
+    echo "[capture-agent] Capturing scenario=$ACTIVE_SCENARIO seconds=$ACTIVE_CAPTURE_SECONDS"
     echo "[capture-agent] Writing temporary file: $TEMP_PATH"
+
+    TCPDUMP_COMMAND=(
+        tcpdump
+        -i "$CAPTURE_INTERFACE"
+        -w "$TEMP_PATH"
+    )
+
+    if [[ -n "$CAPTURE_FILTER" ]]; then
+        read -r -a FILTER_ARGUMENTS <<< "$CAPTURE_FILTER"
+        TCPDUMP_COMMAND+=("${FILTER_ARGUMENTS[@]}")
+    fi
 
     # timeout returns 124 when it stops tcpdump after the requested time.
     # For this script, 124 means the capture chunk completed normally.
     set +e
-    sudo timeout "$CAPTURE_ROTATE_SECONDS" tcpdump \
-        -i "$CAPTURE_INTERFACE" \
-        -w "$TEMP_PATH" \
-        tcp port 80
+    sudo timeout \
+        "$ACTIVE_CAPTURE_SECONDS" \
+        "${TCPDUMP_COMMAND[@]}"
     TCPDUMP_STATUS=$?
     set -e
 

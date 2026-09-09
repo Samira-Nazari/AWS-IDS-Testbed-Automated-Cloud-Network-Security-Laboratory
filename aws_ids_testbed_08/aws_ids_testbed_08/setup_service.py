@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from aws_ids_testbed_08.benign_generator_lifecycle import (
+    BENIGN_GENERATOR_ROLES,
+)
 from aws_ids_testbed_08.remote_runner import RemoteRunner
 from aws_ids_testbed_08.remote_settings import (
     get_private_key_path,
@@ -46,3 +49,17 @@ def run_setup_for_role(project_root: Path, role: str) -> int:
         host=host,
         local_script_path=script_path,
     )
+
+
+def run_setup_for_benign_generators(project_root: Path) -> int:
+    """Install benign traffic tools on all five generator instances."""
+    for role in BENIGN_GENERATOR_ROLES:
+        print(f"[benign-generators] Setting up {role}...")
+        status = run_setup_for_role(project_root, role)
+
+        if status != 0:
+            print(f"[benign-generators] Setup failed for {role}.")
+            return status
+
+    print("[benign-generators] All five generators were configured.")
+    return 0

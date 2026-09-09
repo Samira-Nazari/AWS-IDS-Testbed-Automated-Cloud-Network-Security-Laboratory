@@ -80,7 +80,7 @@ IDS_DEBUG_COMPARE_SAMPLE_WINDOWS_PER_LABEL = 2000
 # Diagnostic-only option for live AWS inference.
 # When enabled in STEP=3, these features are set to the Lite V6 scaler mean
 # before scaling, so their scaled value becomes 0.
-IDS_NEUTRALIZE_TIME_LEAKAGE_FEATURES = False
+IDS_NEUTRALIZE_TIME_LEAKAGE_FEATURES = True
 
 IDS_TIME_LEAKAGE_FEATURES = (
     "min_duration",

@@ -189,6 +189,71 @@ def victim_list_pcaps(project_root: Path) -> int:
     )
 
 
+def verify_benign_pcap_protocols(project_root: Path) -> int:
+    """Count the expected benign protocols in the newest pending PCAP.
+
+    The newest PCAP is selected by modification time on the victim.  The
+    command reports packet counts for the five benign traffic profiles and
+    returns a non-zero status if any expected protocol is absent.
+    """
+    username = get_ssh_username(project_root)
+    private_key_path = get_private_key_path(project_root)
+    victim_public_host = get_public_host(project_root, "victim")
+
+    command = r"""
+set -eu
+
+LATEST="$(find /opt/aws_ids_testbed/pcap/pending \
+    -maxdepth 1 -type f -name '*.pcap' \
+    -printf '%T@ %p\n' | sort -n | tail -1)"
+
+if [ -z "$LATEST" ]; then
+    echo "[benign-pcap] No pending PCAP found."
+    exit 1
+fi
+
+PCAP="${LATEST#* }"
+echo "[benign-pcap] Newest PCAP: $PCAP"
+echo "[benign-pcap] Size: $(stat -c%s "$PCAP") bytes"
+
+failed=0
+
+check_protocol() {
+    label="$1"
+    expression="$2"
+    count="$(sudo tcpdump -nn -r "$PCAP" "$expression" 2>/dev/null | wc -l)"
+    printf "%-24s %s packets\n" "$label" "$count"
+    if [ "$count" -lt 1 ]; then
+        failed=1
+    fi
+}
+
+check_protocol "HTTP TCP/80" "tcp port 80"
+check_protocol "HTTPS TCP/443" "tcp port 443"
+check_protocol "DNS port 53" "port 53"
+check_protocol "MQTT TCP/1883" "tcp port 1883"
+check_protocol "UDP telemetry/9999" "udp port 9999"
+check_protocol "ICMP" "icmp"
+
+if [ "$failed" -ne 0 ]; then
+    echo "[benign-pcap] Protocol validation failed."
+    exit 1
+fi
+
+echo "[benign-pcap] All expected benign protocols are present."
+""".strip()
+
+    runner = RemoteRunner(
+        username=username,
+        private_key_path=private_key_path,
+    )
+
+    return runner.run_command(
+        host=victim_public_host,
+        command=command,
+    )
+
+
 def _run_remote_command(ssh_client: object, command: str) -> None:
     """Run one remote command and raise an error if it fails."""
     _stdin, stdout, stderr = ssh_client.exec_command(command, get_pty=True)

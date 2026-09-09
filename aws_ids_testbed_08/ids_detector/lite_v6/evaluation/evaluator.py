@@ -1436,6 +1436,7 @@ def debug_ids_compare_lite_v6_classes(
     labels: tuple[str, ...] | list[str] | None = None,
     sample_windows_per_label: int | None = None,
     top_n_features: int = 15,
+    source_file_prefixes: tuple[str, ...] | list[str] | None = None,
 ) -> dict:
     """Compare AWS IDS model-ready windows against Lite V6 class windows."""
     window_data_path = Path(window_data_path)
@@ -1466,6 +1467,28 @@ def debug_ids_compare_lite_v6_classes(
     metadata = pd.read_csv(metadata_path)
     if "expected_label_name" not in metadata.columns:
         raise ValueError("Window metadata must contain expected_label_name.")
+
+    source_prefixes = tuple(
+        str(prefix)
+        for prefix in (source_file_prefixes or ())
+        if str(prefix)
+    )
+
+    if source_prefixes:
+        if "source_file_name" not in metadata.columns:
+            raise ValueError("Window metadata must contain source_file_name.")
+
+        metadata = metadata[
+            metadata["source_file_name"]
+            .astype(str)
+            .str.startswith(source_prefixes)
+        ].copy()
+
+        if metadata.empty:
+            raise ValueError(
+                "No AWS IDS windows matched source-file prefixes: "
+                f"{list(source_prefixes)}"
+            )
 
     lite_pools = _load_lite_v6_window_pools()
 
@@ -1553,6 +1576,8 @@ def debug_ids_compare_lite_v6_classes(
             "closer to that Lite V6 class distribution."
         ),
         "labels_compared": labels_to_compare,
+        "aws_source_file_prefixes": list(source_prefixes),
+        "aws_windows_after_source_filter": int(len(metadata)),
         "sample_windows_per_lite_label": int(sample_limit),
         "selected_feature_count": int(len(selected_features)),
         "aws_window_groups": aws_window_groups,

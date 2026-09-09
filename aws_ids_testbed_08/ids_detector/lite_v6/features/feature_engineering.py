@@ -34,6 +34,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from ids_detector.lite_v6.config.config import (
+    IDS_NEUTRALIZE_TIME_LEAKAGE_FEATURES,
+    IDS_TIME_LEAKAGE_FEATURES,
     LITE_V6_SELECTED_FEATURES_PATH,
     LITE_V6_STANDARD_SCALER_PATH,
     LITE_V6_WINDOW_CONFIG_PATH,
@@ -204,7 +206,10 @@ def _load_lite_v6_inference_artifacts() -> dict:
 def _prepare_ids_inference_feature_frame(
     df: pd.DataFrame,
     selected_features: list[str],
-) -> pd.DataFrame:
+    scaler,
+    neutralize_time_leakage_features: bool = IDS_NEUTRALIZE_TIME_LEAKAGE_FEATURES,
+    time_leakage_features: tuple[str, ...] = IDS_TIME_LEAKAGE_FEATURES,
+) -> tuple[pd.DataFrame, list[str]]:
     """Select and clean exactly the Lite V6 saved feature columns."""
     missing_features = [
         feature for feature in selected_features
@@ -220,8 +225,27 @@ def _prepare_ids_inference_feature_frame(
     feature_df = feature_df.apply(pd.to_numeric, errors="coerce")
     feature_df = feature_df.replace([np.inf, -np.inf], np.nan).fillna(0)
 
+    neutralized_features = []
+    if neutralize_time_leakage_features:
+        feature_to_selected_index = {
+            feature: index for index, feature in enumerate(selected_features)
+        }
+
+        for feature in time_leakage_features:
+            if feature not in feature_df.columns:
+                continue
+
+            feature_index = feature_to_selected_index[feature]
+            feature_df[feature] = float(scaler.mean_[feature_index])
+            neutralized_features.append(feature)
+
+        logger.warning(
+            "Diagnostic mode: neutralized IDS time-leakage features before scaling: %s",
+            neutralized_features,
+        )
+
     logger.info("Prepared IDS feature frame: %s", feature_df.shape)
-    return feature_df
+    return feature_df, neutralized_features
 
 
 def _create_ids_inference_windows_by_file(
@@ -1441,9 +1465,10 @@ def engineer_features_for_ids_inference(df: pd.DataFrame) -> dict:
     window_size = artifacts["window_size"]
     step_size = artifacts["step_size"]
 
-    feature_df = _prepare_ids_inference_feature_frame(
+    feature_df, neutralized_features = _prepare_ids_inference_feature_frame(
         df,
         selected_features=selected_features,
+        scaler=scaler,
     )
 
     scaled_features = scaler.transform(feature_df).astype(np.float32, copy=False)
@@ -1464,6 +1489,9 @@ def engineer_features_for_ids_inference(df: pd.DataFrame) -> dict:
         "window_size": int(window_size),
         "step_size": int(step_size),
         "window_feature_count": int(X_windows.shape[-1]),
+        "time_leakage_neutralized": bool(IDS_NEUTRALIZE_TIME_LEAKAGE_FEATURES),
+        "time_leakage_features_requested": list(IDS_TIME_LEAKAGE_FEATURES),
+        "time_leakage_features_neutralized": neutralized_features,
         "windows_by_expected_scenario": (
             window_metadata["expected_scenario"].value_counts().to_dict()
         ),

@@ -21,6 +21,12 @@ from aws_ids_testbed_08.config import load_config
 from aws_ids_testbed_08.inventory import load_inventory
 
 
+BENIGN_GENERATOR_ROLES = frozenset(
+    f"benign_generator_{index:02d}"
+    for index in range(1, 6)
+)
+
+
 def get_ssh_username(project_root: Path) -> str:
     """Return the SSH username from config.yaml.
 
@@ -162,17 +168,8 @@ def get_private_ip(project_root: Path, role: str) -> str:
 
 
 def get_setup_script_path(project_root: Path, role: str) -> Path:
-    """Return the setup bash script path for one EC2 role.
+    """Return the setup bash script path for one EC2 role."""
+    if role in BENIGN_GENERATOR_ROLES:
+        return project_root / "scripts" / "setup_benign_generator.sh"
 
-    Example:
-
-        role = victim
-
-    returns:
-
-        scripts/setup_victim.sh
-
-    This only returns the local file path.
-    It does not run the script.
-    """
     return project_root / "scripts" / f"setup_{role}.sh"

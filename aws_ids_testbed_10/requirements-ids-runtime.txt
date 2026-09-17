@@ -1,0 +1,16 @@
+# IDS receiver
+fastapi==0.139.2
+uvicorn==0.51.0
+python-multipart==0.0.22
+
+# IDS inference
+numpy==2.2.6
+pandas==2.3.3
+scipy==1.15.3
+scikit-learn==1.7.2
+joblib==1.5.3
+
+# PCAP-to-CSV runtime
+dpkt==1.9.8
+scapy==2.7.0
+tqdm==4.69.0

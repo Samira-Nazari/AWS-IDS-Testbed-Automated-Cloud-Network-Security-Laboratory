@@ -1,0 +1,34 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+inventory.yaml
+*.pem
+*.pcap
+*.csv
+*.pt
+*.pth
+*.pkl
+
+# Private keys and credentials
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+.aws/
+kaggle.json
+
+# Local deployment settings
+/config.yaml
+/inventory.yaml
+
+# Python environments and caches
+/env_aws_ids/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
